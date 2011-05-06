@@ -1,7 +1,7 @@
 from sets import Set
 import copy
 
-def get_mr_x_position(graph, mr_x, round):
+def get_mr_x_position(graph, mr_x):
     moves = mr_x.moves[:]
     print moves
     moves.reverse()
