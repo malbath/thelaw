@@ -47,9 +47,7 @@ def getRoutes(graph, policemen, posishs):
     for cop in policemen:
         options = Move_Options(cop)
         co_posish = cop.moves[-1].target
-        print(co_posish)
         for posish in posishs:
-            print(posish)
             options.paths.append(nx.shortest_path(graph, co_posish, posish))
         shortest_paths.append(options)
     return shortest_paths
