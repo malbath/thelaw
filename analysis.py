@@ -61,6 +61,17 @@ class Move_Options(object):
     def __repr__(self):
         return "Cop %s can go %s" % (self.cop, self.paths)
 
+    def longest(self):
+        longest_paths = []
+        length = 0
+        for path in self.paths:
+            if length < len(path):
+                longest_paths = [path]
+                length = len(path)
+            elif length == len(path):
+                longest_paths.append(path)
+        return longest_paths
+
     def shortest(self):
         shortest_paths = []
         length = 200
