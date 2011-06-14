@@ -1,6 +1,11 @@
 from sets import Set
 import networkx as nx
-import copy
+from start import Move
+
+class CopMove(Move):
+    def __init__(self, cop, target, ticket):
+        super(CopMove,self).__init__(target, ticket)
+        self.cop = cop
 
 def get_mr_x_position(graph, mr_x, move_cls):
     moves = mr_x.moves[:]
@@ -42,13 +47,20 @@ def getMrxRoutes(graph, policemen, mr_x, move_cls):
     posishs = get_mr_x_position(graph, mr_x, move_cls)
     return getRoutes(graph, policemen, posishs)
 
+def getCopPosish(cop):
+    if len(cop.moves) == 0:
+        return cop.start_node
+    else:
+        return cop.moves[-1].target
+
 def getRoutes(graph, policemen, posishs):
     shortest_paths = []
     for cop in policemen:
         options = Move_Options(cop)
-        co_posish = cop.moves[-1].target
+        co_posish = getCopPosish(cop)
         for posish in posishs:
-            options.paths.append(nx.shortest_path(graph, co_posish, posish))
+            if not co_posish == posish:
+                options.paths.append(nx.shortest_path(graph, co_posish, posish))
         shortest_paths.append(options)
     return shortest_paths
 
@@ -65,12 +77,42 @@ class Move_Options(object):
         shortest_paths = []
         length = 200
         for path in self.paths:
-            if length > len(path):
+            if length > len(path) and not len(path) == 1:
                 shortest_paths = [path]
                 length = len(path)
             elif length == len(path):
                 shortest_paths.append(path)
         return shortest_paths
+
+# return the type of ticket the cop should use
+def evaluate_ticket(cop, target):
+    last_target = getCopPosish(cop)
+    got_bus = False
+    got_taxi = False
+    got_ubahn = False
+    for tries in [1,2,3]:
+        try:
+            ticket = graph[last_target][target][tries]['ticket']
+            if ticket == 'Bus':
+                got_bus = True
+            elif ticket == 'Taxi':
+                got_taxi = True
+            elif ticket == 'UBahn':
+                got_ubahn = True
+        except:
+            pass
+    if got_taxi and not got_ubahn and not got_bus:
+        return 'cab'
+    elif got_bus and not got_taxi and not got_ubahn:
+        return 'bus'
+    elif got_ubahn and not got_taxi and not got_bus:
+        return 'underground'
+    else: # got_bus and got_taxi
+        if cop.tickets_cab > cop.tickets_bus:
+            return 'cab'
+        else:
+            return 'bus'
+
 
 goodplaces = []
 
@@ -97,6 +139,97 @@ def get_goodplaces(graph):
                 goodplaces.append(node)
     return goodplaces
 
-# returns a list of Move objects with
+# returns a list of Move objects
 def go_to_goodplace(whenshow, graph, polices, mr_x, move_cls):
-    getRoutes(graph, polices, get_goodplaces)
+    routes_to_goodplace = getRoutes(graph, polices, get_goodplaces(graph))
+    steps = 5 - whenshow
+    moves = []
+    for cop in polices:
+        for route in routes_to_goodplace:
+            success = False
+            for path in route.paths:
+                if len(path) == steps and not success:
+                    moves.append(CopMove(cop, path, evaluate_ticket(cop, path)))
+                    success = True
+            if not success:
+                moves.append(try_to_catch_single(graph, cop, mr_x, move_cls, find_nogoes(moves)))
+    return moves
+
+def find_nogoes(moves):
+    no_goes = []
+    for move in moves:
+        no_goes.append(move.target)
+    return no_goes
+
+# returns a list of Move objects for each cop
+def try_to_catch(graph, polices, mr_x, move_cls):
+    moves = []
+    for cop in polices:
+        no_goes = find_nogoes(moves)
+        moves.append(try_to_catch_single(graph, cop, mr_x, move_cls, no_goes))
+    return moves
+
+# returns the number of the most popular target step
+def get_popular_step(options, no_goes):
+    steps = []
+    for option in options.paths:
+        success = False
+        if not option[1] in no_goes:
+            steps.append(option[1])
+            success = True
+        if not success:
+            steps.append(options.paths[0][1])
+    steps.sort()
+    final_target = None
+    final_count = 0
+    temp_target = None
+    temp_count = 0
+    for step in steps:
+        if temp_target==None:
+            temp_target = step
+            temp_count = 1
+        elif temp_target==step:
+            temp_count = temp_count + 1
+        else:
+            if final_count < temp_count:
+                final_target = temp_target
+                final_count = temp_count
+            temp_count = 1
+            temp_target = step
+    if final_target == None:
+        final_target = temp_target
+    return final_target
+
+def make_random_move(graph, cop, no_goes):
+    posish = getCopPosish(cop)
+    neighbors = graph.neighbors(posish)
+    success = False
+    for neighbor in neighbors:
+        if not neighbor in no_goes:
+            target = neighbor
+            success = True
+    if not success:
+        target = neighbors[0]
+    return CopMove(cop, target, evaluate_ticket(cop, neighbors))
+
+# returns a Move object for a single cop
+def try_to_catch_single(graph, cop, mr_x, move_cls, no_goes):
+    routes = getMrxRoutes(graph, [cop], mr_x, move_cls)
+    if len(routes[0].paths) == 0:
+        return make_random_move(graph, cop, no_goes)
+    options = routes[0]
+    shortest_options = options.shortest()
+    move = None
+    for opt in shortest_options:
+        if not opt[1] in no_goes:
+            print('normal')
+            move = CopMove(cop, opt[1], evaluate_ticket(cop, opt[1]))
+            break
+    if move == None:
+        print('popular')
+        target = get_popular_step(options, no_goes)
+        move = CopMove(cop, target, evaluate_ticket(cop, target))
+    if move == None:
+        print('random')
+        move = make_random_move(graph, cop, no_goes)
+    return move
