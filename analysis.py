@@ -42,7 +42,6 @@ def getMrxRoutes(graph, policemen, mr_x, move_cls):
     posishs = get_mr_x_position(graph, mr_x, move_cls)
     return getRoutes(graph, policemen, posishs)
 
-
 def getRoutes(graph, policemen, posishs):
     shortest_paths = []
     for cop in policemen:
@@ -64,6 +63,8 @@ class Move_Options(object):
 
 	def longest(self):
 		longest_paths = []
+    def longest(self):
+        longest_paths = []
         length = 0
         for path in self.paths:
             if length < len(path):
@@ -72,7 +73,7 @@ class Move_Options(object):
             elif length == len(path):
                 longest_paths.append(path)
         return longest_paths
-		
+
     def shortest(self):
         shortest_paths = []
         length = 200
@@ -84,7 +85,6 @@ class Move_Options(object):
                 shortest_paths.append(path)
         return shortest_paths
 	
-
 
 goodplaces = []
 
