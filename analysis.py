@@ -22,7 +22,7 @@ def get_mr_x_position(graph, mr_x, move_cls):
 
 def getPlaces(graph, position, tickets):
     if len(tickets) == 0:
-        return []
+        return [position]
     ticket = tickets[0]
     choices = graph.neighbors(position)
     places = []
@@ -38,8 +38,11 @@ def getPlaces(graph, position, tickets):
                     places.extend(getPlaces(graph,c,tix))
     return list(set(places))
 
-def getRoutes(graph, policemen, mr_x, move_cls):
+def getMrxRoutes(graph, policemen, mr_x, move_cls):
     posishs = get_mr_x_position(graph, mr_x, move_cls)
+    return getSomeRoutes(graph, policemen, posishs)
+
+def getRoutes(graph, policemen, posishs):
     shortest_paths = []
     for cop in policemen:
         options = Move_Options(cop)
@@ -47,11 +50,7 @@ def getRoutes(graph, policemen, mr_x, move_cls):
             co_posish = cop.moves[-1].target
             options.paths.append(nx.shortest_path(graph, co_posish, posish))
         shortest_paths.append(options)
-        print 'shortest_path', options.cop, options.shortest()
-
-    print 'Police', policemen
-    print 'MRX', mr_x
-    print 'moves', move_cls
+    return shortest_paths
 
 class Move_Options(object):
     paths = []
@@ -70,3 +69,32 @@ class Move_Options(object):
             elif length == len(path):
                 shortest_paths.append(path)
         return shortest_paths
+
+goodplaces = []
+
+# returns a list of goodplaces
+def get_goodplaces(graph):
+    if len(goodplaces)==0:
+        for node in nx.nodes(graph):
+            got_bus = False
+            got_taxi = False
+            got_ubahn = False
+            for edge in nx.edges(graph,node):
+                for tries in [0,1,2]:
+                    try:
+                        ticket = graph[edge[0]][edge[1]][tries]['ticket']
+                        if ticket == 'Bus':
+                            got_bus = True
+                        elif ticket == 'Taxi':
+                            got_taxi = True
+                        elif ticket == 'UBahn':
+                            got_ubahn = True
+                    except:
+                        pass
+            if got_bus & got_taxi & got_ubahn:
+                goodplaces.append(node)
+    return goodplaces
+
+# returns a list of Move objects with
+def go_to_goodplace(whenshow, graph, polices, mr_x, move_cls):
+    getRoutes(graph, polices, get_goodplaces)
