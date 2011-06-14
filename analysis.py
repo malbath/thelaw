@@ -157,7 +157,11 @@ def go_to_goodplace(whenshow, graph, polices, mr_x, move_cls):
                 moves.append(CopMove(polices[copi], path[1], evaluate_ticket(graph, polices[copi], path[1])))
                 success = True
         if not success:
-            moves.append(try_to_catch_single(graph, polices[copi], mr_x, move_cls, find_nogoes(moves)))
+            cop = polices[copi]
+            if not cop.tickets_bus < 2 and not cop.tickets_cab < 2 and not cop.tickets_underground < 1:
+                moves.append(try_to_catch_single(graph, cop, mr_x, move_cls, find_nogoes(moves)))
+            else:
+                moves.append(try_to_escape(graph,cop,mr_x, move_cls, find_nogoes(moves)))
         copi = copi + 1
     return moves
 
@@ -199,7 +203,7 @@ def try_to_catch(graph, polices, mr_x, move_cls):
     moves = []
     for cop in polices:
         no_goes = find_nogoes(moves)
-        if not cop.tickets_bus < 2 and not cop.tickets_cab < 2:
+        if not cop.tickets_bus < 2 and not cop.tickets_cab < 2 and not cop.tickets_underground < 1:
             moves.append(try_to_catch_single(graph, cop, mr_x, move_cls, no_goes))
         else:
             moves.append(try_to_escape(graph,cop,mr_x, move_cls, no_goes))
@@ -246,7 +250,6 @@ def make_random_move(graph, cop, no_goes):
             success = True
     if not success:
         target = neighbors[0]
-    print('append move in random')
     return CopMove(cop, target, evaluate_ticket(graph, cop, target))
 
 # returns a Move object for a single cop
@@ -259,12 +262,10 @@ def try_to_catch_single(graph, cop, mr_x, move_cls, no_goes):
     move = None
     for opt in shortest_options:
         if not opt[1] in no_goes:
-            print('append move in catch')
             move = CopMove(cop, opt[1], evaluate_ticket(graph, cop, opt[1]))
             break
     if move == None:
         target = get_popular_step(options, no_goes)
-        print('append move in catch')
         move = CopMove(cop, target, evaluate_ticket(graph, cop, target))
     if move == None:
         move = make_random_move(graph, cop, no_goes)
