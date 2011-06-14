@@ -222,14 +222,11 @@ def try_to_catch_single(graph, cop, mr_x, move_cls, no_goes):
     move = None
     for opt in shortest_options:
         if not opt[1] in no_goes:
-            print('normal')
             move = CopMove(cop, opt[1], evaluate_ticket(cop, opt[1]))
             break
     if move == None:
-        print('popular')
         target = get_popular_step(options, no_goes)
         move = CopMove(cop, target, evaluate_ticket(cop, target))
     if move == None:
-        print('random')
         move = make_random_move(graph, cop, no_goes)
     return move
