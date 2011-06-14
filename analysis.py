@@ -40,14 +40,16 @@ def getPlaces(graph, position, tickets):
 
 def getMrxRoutes(graph, policemen, mr_x, move_cls):
     posishs = get_mr_x_position(graph, mr_x, move_cls)
-    return getSomeRoutes(graph, policemen, posishs)
+    return getRoutes(graph, policemen, posishs)
 
 def getRoutes(graph, policemen, posishs):
     shortest_paths = []
     for cop in policemen:
         options = Move_Options(cop)
+        co_posish = cop.moves[-1].target
+        print(co_posish)
         for posish in posishs:
-            co_posish = cop.moves[-1].target
+            print(posish)
             options.paths.append(nx.shortest_path(graph, co_posish, posish))
         shortest_paths.append(options)
     return shortest_paths
@@ -56,6 +58,7 @@ class Move_Options(object):
     paths = []
     def __init__(self, cop):
         self.cop = cop
+        self.paths = []
 
     def __repr__(self):
         return "Cop %s can go %s" % (self.cop, self.paths)
@@ -66,6 +69,7 @@ class Move_Options(object):
         for path in self.paths:
             if length > len(path):
                 shortest_paths = [path]
+                length = len(path)
             elif length == len(path):
                 shortest_paths.append(path)
         return shortest_paths
