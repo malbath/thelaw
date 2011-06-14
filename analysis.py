@@ -7,6 +7,9 @@ class CopMove(Move):
         super(CopMove,self).__init__(target, ticket)
         self.cop = cop
 
+    def __repr__(self):
+        return 'cop %s to target %s with %s' % (self.cop, self.target, self.ticket)
+
 def get_mr_x_position(graph, mr_x, move_cls):
     moves = mr_x.moves[:]
     moves.reverse()
@@ -85,19 +88,19 @@ class Move_Options(object):
         return shortest_paths
 
 # return the type of ticket the cop should use
-def evaluate_ticket(cop, target):
+def evaluate_ticket(graph, cop, target):
     last_target = getCopPosish(cop)
     got_bus = False
     got_taxi = False
     got_ubahn = False
-    for tries in [1,2,3]:
+    for tries in [0,1,2]:
         try:
             ticket = graph[last_target][target][tries]['ticket']
-            if ticket == 'Bus':
+            if ticket == 'bus':
                 got_bus = True
-            elif ticket == 'Taxi':
+            elif ticket == 'cab':
                 got_taxi = True
-            elif ticket == 'UBahn':
+            elif ticket == 'underground':
                 got_ubahn = True
         except:
             pass
@@ -127,11 +130,11 @@ def get_goodplaces(graph):
                 for tries in [0,1,2]:
                     try:
                         ticket = graph[edge[0]][edge[1]][tries]['ticket']
-                        if ticket == 'Bus':
+                        if ticket == 'bus':
                             got_bus = True
-                        elif ticket == 'Taxi':
+                        elif ticket == 'cab':
                             got_taxi = True
-                        elif ticket == 'UBahn':
+                        elif ticket == 'underground':
                             got_ubahn = True
                     except:
                         pass
@@ -144,15 +147,18 @@ def go_to_goodplace(whenshow, graph, polices, mr_x, move_cls):
     routes_to_goodplace = getRoutes(graph, polices, get_goodplaces(graph))
     steps = 5 - whenshow
     moves = []
-    for cop in polices:
-        for route in routes_to_goodplace:
-            success = False
-            for path in route.paths:
-                if len(path) == steps and not success:
-                    moves.append(CopMove(cop, path, evaluate_ticket(cop, path)))
-                    success = True
-            if not success:
-                moves.append(try_to_catch_single(graph, cop, mr_x, move_cls, find_nogoes(moves)))
+    copi = 0
+    for route in routes_to_goodplace:
+        success = False
+        for path in route.paths:
+            if polices[copi].tickets_underground <= 1:
+                break
+            if len(path) == steps+1 and not success:
+                moves.append(CopMove(polices[copi], path[1], evaluate_ticket(graph, polices[copi], path[1])))
+                success = True
+        if not success:
+            moves.append(try_to_catch_single(graph, polices[copi], mr_x, move_cls, find_nogoes(moves)))
+        copi = copi + 1
     return moves
 
 def find_nogoes(moves):
@@ -161,12 +167,42 @@ def find_nogoes(moves):
         no_goes.append(move.target)
     return no_goes
 
+def try_to_escape(graph, cop, mr_x, move_cls, no_goes):
+    posish = getCopPosish(cop)
+    neighbors = graph.neighbors(posish)
+    success = False
+    for neighbor in neighbors:
+        if cop.tickets_bus <= cop.tickets_cab:
+            if evaluate_ticket(graph, cop, neighbor) == 'cab':
+                target = neighbor
+                success = True
+        elif cop.tickets_bus > cop.tickets_cab:
+            if evaluate_ticket(graph, cop, neighbor) == 'bus':
+                target = neighbor
+                success = True
+        elif cop.tickets_bus == 0 and cop.tickets_cab == 0:
+            if evaluate_ticket(graph, cop, neighbor) == 'underground':
+                target = neighbor
+                success = True
+    if not success:
+        print('screw you guys, im going home')
+        if not cop.tickets_underground == 0:
+            return CopMove(cop, neighbors[0], 'underground')
+        elif not cop.tickets_cab == 0:
+            return CopMove(cop, neighbors[0], 'cab')
+        elif not cop.tickets_bus == 0:
+            return CopMove(cop, neighbors[0], 'bus')
+    return CopMove(cop, target, evaluate_ticket(graph, cop, neighbors))
+
 # returns a list of Move objects for each cop
 def try_to_catch(graph, polices, mr_x, move_cls):
     moves = []
     for cop in polices:
         no_goes = find_nogoes(moves)
-        moves.append(try_to_catch_single(graph, cop, mr_x, move_cls, no_goes))
+        if not cop.tickets_bus < 2 and not cop.tickets_cab < 2:
+            moves.append(try_to_catch_single(graph, cop, mr_x, move_cls, no_goes))
+        else:
+            moves.append(try_to_escape(graph,cop,mr_x, move_cls, no_goes))
     return moves
 
 # returns the number of the most popular target step
@@ -210,7 +246,8 @@ def make_random_move(graph, cop, no_goes):
             success = True
     if not success:
         target = neighbors[0]
-    return CopMove(cop, target, evaluate_ticket(cop, neighbors))
+    print('append move in random')
+    return CopMove(cop, target, evaluate_ticket(graph, cop, target))
 
 # returns a Move object for a single cop
 def try_to_catch_single(graph, cop, mr_x, move_cls, no_goes):
@@ -222,11 +259,13 @@ def try_to_catch_single(graph, cop, mr_x, move_cls, no_goes):
     move = None
     for opt in shortest_options:
         if not opt[1] in no_goes:
-            move = CopMove(cop, opt[1], evaluate_ticket(cop, opt[1]))
+            print('append move in catch')
+            move = CopMove(cop, opt[1], evaluate_ticket(graph, cop, opt[1]))
             break
     if move == None:
         target = get_popular_step(options, no_goes)
-        move = CopMove(cop, target, evaluate_ticket(cop, target))
+        print('append move in catch')
+        move = CopMove(cop, target, evaluate_ticket(graph, cop, target))
     if move == None:
         move = make_random_move(graph, cop, no_goes)
     return move

@@ -136,18 +136,18 @@ class PipediController(object):
         whenshow = (round+3)%5
         if round < 2:
             return analysis.go_to_goodplace(whenshow, self.graph, self.polices, self.mr_x, self.move_cls)
-        elif whenshow == 3 | whenshow == 4:
-            draws = analysis.go_to_goodplace()
-            shortest_paths = analysis.getRoutes(self.graph, self.polices, self.mr_x, self.move_cls)
-            for path_option in shortest_paths:
-                temp_draw = None
-                temp_nodes_count = 200
-                for path in path_option.paths:
-                    if len(path) < 2 & len(path) < temp_nodes_count:
-                        temp_nodes_count = len(path)
-                        temp_draw = Move(path[0], evaluate_ticket(path_option.cop, path[0]))
-                if temp_draw != None:
-                    draws[path_option.cop] = temp_draw
+        elif whenshow == 3 or whenshow == 4:
+            draws = analysis.go_to_goodplace(whenshow, self.graph, self.polices, self.mr_x, self.move_cls)
+#            shortest_paths = analysis.getMrxRoutes(self.graph, self.polices, self.mr_x, self.move_cls)
+#            for path_option in shortest_paths:
+#                temp_draw = None
+#                temp_nodes_count = 200
+#                for path in path_option.paths:
+#                    if len(path) < 2 & len(path) < temp_nodes_count:
+#                        temp_nodes_count = len(path)
+#                        temp_draw = Move(path[0], evaluate_ticket(self.graph, path_option.cop, path[0]))
+#                if temp_draw != None:
+#                    draws[path_option.cop] = temp_draw
             return draws
         else:
             return try_to_catch(self.graph, self.polices, self.mr_x, self.move_cls)
